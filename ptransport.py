@@ -3,31 +3,31 @@ import numpy as np
 from tqdm import tqdm
 from sklearn.neighbors import NearestNeighbors
 
-def _tangent_space(X, i, neighbours_idxs, d):
-    geodesic_neighborhood = X[neighbours_idxs] - X[i]
-    # print("!", geodesic_neighborhood.shape)
-    u, _, _ = np.linalg.svd(geodesic_neighborhood.T)
-    # print(">>", u[:, :d])
-    return u[:, :d]
-
-
 def _compute_tangent_spaces(X, nnbrs, K, d):
-    T = []
-    for i in tqdm(range(X.shape[0])):
-        neighbours_idxs = nnbrs.kneighbors([X[i]], n_neighbors = K + 1,  return_distance=False)[0][1:]
-        T.append(_tangent_space(X, i, neighbours_idxs, d))
-    return T
+    kn_graph = nnbrs.kneighbors_graph(n_neighbors=K).toarray()
+    kn_graph -= np.eye((kn_graph.shape[0]))
 
-def _get_neigh_idxs(i, nnbrs, n_neighbors, make_graph_how):
+    geodesic_neighborhoods = np.array([(X[np.nonzero(kn_graph[i])] - X[i]).T for i in tqdm(range(X.shape[0]))])
+    u, _, _ = np.linalg.svd(geodesic_neighborhoods)
+
+    return u[:, :, :d]
+
+
+
+def _get_neigh_idxs_and_dists(nnbrs, make_graph_how):
+    neigh_idxs = []
     if make_graph_how == 'neighbors':
-        # return nnbrs.kneighbors([x], n_neighbors + 1, return_distance=False)[0][1:]
-        idxs = nnbrs.kneighbors_graph().toarray()[i]
-        idxs = np.argwhere(idxs == 1)[:, 0]
-        return idxs[idxs != i]
+        nnbrs_graph = nnbrs.kneighbors_graph().toarray()
+        nnbrs_graph -= np.eye(nnbrs_graph.shape[0])
+        nnbrs_idxs = [np.nonzero(nnbrs_graph[i])[0] for i in range(nnbrs_graph.shape[0])]
+        
+        nnbrs_dists = nnbrs.kneighbors_graph(mode='distance').toarray()
+        
+        return nnbrs_idxs, nnbrs_dists
     if make_graph_how == 'radius':
-        # _, idxs = nnbrs.radius_neighbors([x], n_neighbors + 1, return_distance=True, sort_results=True)
-        # return idxs[0][1:]
         raise NotImplementedError
+
+
 
 def PTU_dists(
     X, 
@@ -60,8 +60,8 @@ def PTU_dists(
     R = np.zeros((n, n_components, n_components))
     v = np.zeros((n, n_components))
     D = np.zeros((n, n))
-    # pred = np.zeros((n), dtype=int)
-    # dist = np.zeros((n)) # ??
+
+    nnbrs_idxs, nnbrs_pairwise_dists = _get_neigh_idxs_and_dists(nnbrs, make_graph_how)
 
     for i in tqdm(range(n)):
         pred = np.zeros((n), dtype=int)
@@ -70,37 +70,29 @@ def PTU_dists(
         R[i] = np.eye(n_components)
         v[i] = np.zeros((n_components))
         
-        adjacent_idxs = _get_neigh_idxs(i, nnbrs, n_neighbors, make_graph_how)
 
-        for j in adjacent_idxs:
+        for j in nnbrs_idxs[i]:
             pred[j] = int(i)
-            dist[j] = np.linalg.norm(X[j] - X[i])
+            dist[j] = nnbrs_pairwise_dists[j, i]
             heapq.heappush(P, (dist[j], j))
             j_used[j] = True
         
         while P: # while P is not empty
             item_r = heapq.heappop(P)
             j_used[item_r[1]] = False
-            # print("??", item_r)
             r = item_r[1]
-            # x_r = X[r]
             q = pred[r]
-            # print(tangent_spaces[q].shape, tangent_spaces[r].shape)
             u, s, vh = np.linalg.svd(tangent_spaces[q].T @ tangent_spaces[r])
             
             R[r] = R[q] @ u @ vh
             v[r] = v[q] + R[q] @ tangent_spaces[q].T @ (X[r] - X[q])
-            # print(r)
             D[i, r] = np.linalg.norm(v[r]) # geo_dist[r]
             
-            adjacent_to_r_idxs = _get_neigh_idxs(r, nnbrs, n_neighbors, make_graph_how)
-            print(adjacent_to_r_idxs)
-            for j in adjacent_to_r_idxs:
-                tmp_dist = dist[r] + np.linalg.norm(X[j] - X[r])
+            for j in nnbrs_idxs[r]:
+                tmp_dist = dist[r] + nnbrs_pairwise_dists[j, r]
                 if tmp_dist < dist[j]:
                     dist[j] = tmp_dist
                     pred[j] = r
-                    print("lol", j)
                     if not j_used[j]:
                         heapq.heappush(P, (dist[j], j))
                         j_used[j] = True
