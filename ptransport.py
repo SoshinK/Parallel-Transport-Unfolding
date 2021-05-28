@@ -2,6 +2,10 @@ import heapq
 import numpy as np
 from tqdm import tqdm
 from sklearn.neighbors import NearestNeighbors
+from sklearn.manifold import MDS
+from sklearn.datasets import make_swiss_roll
+import matplotlib.pyplot as plt
+
 
 def _compute_tangent_spaces(X, nnbrs, K, d):
     kn_graph = nnbrs.kneighbors_graph(n_neighbors=K).toarray()
@@ -51,9 +55,9 @@ def PTU_dists(
         radius=radius,
         n_jobs=n_jobs)
     nnbrs.fit(X)
-    print("fitted")
+    print("NearestNeighbors fitted")
     tangent_spaces = _compute_tangent_spaces(X, nnbrs, K, n_components)
-    print("tangent yes")
+    print("tangent spaces computed")
     P = []
     j_used = [False] * n
 
@@ -66,7 +70,8 @@ def PTU_dists(
     for i in tqdm(range(n)):
         pred = np.zeros((n), dtype=int)
         dist = np.ones((n)) * np.infty # ??
-        
+        dist[i] = 0
+
         R[i] = np.eye(n_components)
         v[i] = np.zeros((n_components))
         
@@ -99,55 +104,158 @@ def PTU_dists(
     D = (D + D.T) / 2
     return D
 
+def PTU(
+    X, 
+    n_components, 
+    radius = 1.0, 
+    n_neighbors = 5, 
+    make_graph_how = 'neighbors',
+    K=None,
+    n_jobs=-1):
+    
+    d = PTU_dists(X, n_components, radius, n_neighbors, make_graph_how, K, n_jobs)
+    
+    mds = MDS(n_components, dissimilarity='precomputed')
+    embedded = mds.fit_transform(d)
+    return embedded
 
 
-def dijkstra(neighbors, ledges, n):
+
+def iso_dists(
+    X, 
+    n_components, 
+    radius = 1.0, 
+    n_neighbors = 5, 
+    make_graph_how = 'neighbors',
+    K=None,
+    n_jobs=-1):
+    
+    if make_graph_how != 'neighbors' and make_graph_how != 'radius':
+        raise ValueError(f"Undefined mode {make_graph_how}. Possible variants: \'neighbors\' or \'radius\'")
+
+    if K is None:
+        K = n_neighbors
+
+    n = X.shape[0]
+
+    nnbrs = NearestNeighbors(
+        n_neighbors=n_neighbors, 
+        radius=radius,
+        n_jobs=n_jobs)
+    nnbrs.fit(X)
+    print("NearestNeighbors fitted")
+    tangent_spaces = _compute_tangent_spaces(X, nnbrs, K, n_components)
+    print("tangent spaces computed")
     P = []
+    j_used = [False] * n
+
     # R = np.zeros((n, n_components, n_components))
     # v = np.zeros((n, n_components))
     D = np.zeros((n, n))
-    # pred = np.zeros((n), dtype=int)
-    # dist = np.zeros((n)) # ??
+
+    nnbrs_idxs, nnbrs_pairwise_dists = _get_neigh_idxs_and_dists(nnbrs, make_graph_how)
 
     for i in tqdm(range(n)):
         pred = np.zeros((n), dtype=int)
         dist = np.ones((n)) * np.infty # ??
+        dist[i] = 0
+
         # R[i] = np.eye(n_components)
         # v[i] = np.zeros((n_components))
         
-        # adjacent_idxs = _get_neigh_idxs(X[i], nnbrs, n_neighbors, make_graph_how)
 
-        for j in neighbors[i]:
+        for j in nnbrs_idxs[i]:
             pred[j] = int(i)
-            dist[j] = ledges[i, j]
+            dist[j] = nnbrs_pairwise_dists[j, i]
             heapq.heappush(P, (dist[j], j))
-        print(">>", i, pred, dist)
+            j_used[j] = True
+        
         while P: # while P is not empty
-            print("heap:", P)
             item_r = heapq.heappop(P)
-            print("??", item_r)
+            j_used[item_r[1]] = False
             r = item_r[1]
-            # x_r = X[r]
             q = pred[r]
-            # # print(tangent_spaces[q].shape, tangent_spaces[r].shape)
             # u, s, vh = np.linalg.svd(tangent_spaces[q].T @ tangent_spaces[r])
+            
             # R[r] = R[q] @ u @ vh
             # v[r] = v[q] + R[q] @ tangent_spaces[q].T @ (X[r] - X[q])
-            # # print(r)
-            D[i, r] = D[i, q] + ledges[r, q] # geo_dist[r]
-            print("lol ", D)
-            for j in neighbors[r]:
-                tmp_dist = dist[r] + ledges[j, r]#np.linalg.norm(X[j] - X[r])
+            D[i, r] = D[i, q] + nnbrs_pairwise_dists[j, r]#np.linalg.norm(v[r]) # geo_dist[r]
+            
+            for j in nnbrs_idxs[r]:
+                tmp_dist = dist[r] + nnbrs_pairwise_dists[j, r]
                 if tmp_dist < dist[j]:
                     dist[j] = tmp_dist
                     pred[j] = r
-                    if not j in P:
+                    if not j_used[j]:
                         heapq.heappush(P, (dist[j], j))
-    # D = (D + D.T) / 2
+                        j_used[j] = True
+    D = (D + D.T) / 2
     return D
 
+def dijkstra(neighbors, ledges, n):
+    P = []
+    j_used = [False] * n
+
+    # R = np.zeros((n, n_components, n_components))
+    # v = np.zeros((n, n_components))
+    D = np.zeros((n, n))
+
+    # nnbrs_idxs, nnbrs_pairwise_dists = _get_neigh_idxs_and_dists(nnbrs, make_graph_how)
+    nnbrs_idxs, nnbrs_pairwise_dists = neighbors, ledges
+
+    for i in tqdm(range(n)):
+        pred = np.zeros((n), dtype=int)
+        dist = np.ones((n)) * np.infty # ??
+        dist[i] = 0
+        
+        # R[i] = np.eye(n_components)
+        # v[i] = np.zeros((n_components))
+        
+
+        for j in nnbrs_idxs[i]:
+            pred[j] = int(i)
+            dist[j] = nnbrs_pairwise_dists[j, i]
+            heapq.heappush(P, (dist[j], j))
+            j_used[j] = True
+        
+        while P: # while P is not empty
+            item_r = heapq.heappop(P)
+            j_used[item_r[1]] = False
+            r = item_r[1]
+            q = pred[r]
+            # u, s, vh = np.linalg.svd(tangent_spaces[q].T @ tangent_spaces[r])
+            
+            # R[r] = R[q] @ u @ vh
+            # v[r] = v[q] + R[q] @ tangent_spaces[q].T @ (X[r] - X[q])
+            # D[i, r] = np.linalg.norm(v[r]) # geo_dist[r]
+            D[i, r] = D[i, q] + nnbrs_pairwise_dists[q, r]
+            for j in nnbrs_idxs[r]:
+                tmp_dist = dist[r] + nnbrs_pairwise_dists[j, r]
+                if tmp_dist < dist[j]:
+                    dist[j] = tmp_dist
+                    pred[j] = r
+                    if not j_used[j]:
+                        heapq.heappush(P, (dist[j], j))
+                        j_used[j] = True
+    D = (D + D.T) / 2
+    return D
 
 def test():
+    X, color = make_swiss_roll(n_samples=700, random_state=123)
+
+    fig = plt.figure(figsize=(7,7))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.scatter(X[:, 0], X[:, 1], X[:, 2], c=color, cmap=plt.cm.rainbow)
+    plt.title('Swiss Roll in 3D')
+    plt.show()
+
+    x_embed = PTU(X, 2, n_neighbors=10)
+    
+    plt.figure(figsize=(10, 10))
+    plt.scatter(x_embed[:, 0], x_embed[:, 1], c=color, cmap=plt.cm.rainbow)
+    plt.show()
+
+def test1():
     X = np.random.randn(12).reshape((4, 3))
     print(X)
     T = _tangent_space(X, 0, [1, 2, 3], 3)
@@ -162,4 +270,4 @@ def test2():
     print(neigh.kneighbors([[1  , 0, 0]], 2, return_distance=False))
 
 if __name__ == '__main__':
-    test2()
+    test()
