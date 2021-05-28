@@ -116,7 +116,9 @@ def PTU(
     d = PTU_dists(X, n_components, radius, n_neighbors, make_graph_how, K, n_jobs)
     
     mds = MDS(n_components, dissimilarity='precomputed')
+    print("performing MDS")
     embedded = mds.fit_transform(d)
+    print("Parallel Transport Unfolding successfully completed!")
     return embedded
 
 
