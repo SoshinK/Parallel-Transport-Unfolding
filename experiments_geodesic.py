@@ -37,7 +37,7 @@ def experiment_geodesic():
     ptu_errors = []
     number_paths_that_length = []
 
-    for i in [0, 50, 100, 150, 200, 250, 350, 400, 450]:
+    for i in [0, 50, 150 , 250, 350, 450]:
         # print(nnbrs_idxs)
         lengths, routes = dijkstra(i, nnbrs_idxs, nnbrs.kneighbors_graph(mode='distance').toarray(), X.shape[0])
 
@@ -67,7 +67,7 @@ def experiment_geodesic():
     path_lengths, dijkstra_errors_mean = zip(*sorted(zip(path_lengths, dijkstra_errors_mean)))
     path_lengths, ptu_errors_mean = zip(*sorted(zip(path_lengths2, ptu_errors_mean)))
 
-    plt.figsize((10, 8))
+    plt.figure(figsize=(10, 8))
     plt.plot(path_lengths, dijkstra_errors_mean, label='dijkstra')
     plt.plot(path_lengths, ptu_errors_mean, c='r', label='PTU')
     plt.legend()
