@@ -11,7 +11,7 @@ def _compute_tangent_spaces(X, nnbrs, K, d):
     kn_graph = nnbrs.kneighbors_graph(n_neighbors=K).toarray()
     # kn_graph -= np.eye((kn_graph.shape[0]))
 
-    geodesic_neighborhoods = np.array([(X[np.nonzero(kn_graph[i])] - X[i]).T for i in tqdm(range(X.shape[0]))])
+    geodesic_neighborhoods = np.array([(X[np.nonzero(kn_graph[i])] - X[i]).T for i in range(X.shape[0])])
     u, _, _ = np.linalg.svd(geodesic_neighborhoods)
 
     return u[:, :, :d]
@@ -40,7 +40,8 @@ def PTU_dists(
     n_neighbors = 5, 
     make_graph_how = 'neighbors',
     K=None,
-    n_jobs=-1):
+    n_jobs=-1,
+    verbose=False):
     
     if make_graph_how != 'neighbors' and make_graph_how != 'radius':
         raise ValueError(f"Undefined mode {make_graph_how}. Possible variants: \'neighbors\' or \'radius\'")
@@ -55,9 +56,11 @@ def PTU_dists(
         radius=radius,
         n_jobs=n_jobs)
     nnbrs.fit(X)
-    print("NearestNeighbors fitted")
+    if verbose:
+        print("NearestNeighbors fitted")
     tangent_spaces = _compute_tangent_spaces(X, nnbrs, K, n_components)
-    print("tangent spaces computed")
+    if verbose:
+        print("tangent spaces computed")
     P = []
     j_used = [False] * n
 
@@ -67,7 +70,8 @@ def PTU_dists(
 
     nnbrs_idxs, nnbrs_pairwise_dists = _get_neigh_idxs_and_dists(nnbrs, make_graph_how)
 
-    for i in tqdm(range(n)):
+    # for i in tqdm(range(n)):
+    for i in range(n):    
         pred = np.zeros((n), dtype=int)
         dist = np.ones((n)) * np.infty # ??
         dist[i] = 0
@@ -111,14 +115,17 @@ def PTU(
     n_neighbors = 5, 
     make_graph_how = 'neighbors',
     K=None,
-    n_jobs=-1):
+    n_jobs=-1,
+    verbose=False):
     
-    d = PTU_dists(X, n_components, radius, n_neighbors, make_graph_how, K, n_jobs)
+    d = PTU_dists(X, n_components, radius, n_neighbors, make_graph_how, K, n_jobs, verbose)
     
     mds = MDS(n_components, dissimilarity='precomputed')
-    print("performing MDS")
+    if verbose:
+        print("performing MDS")
     embedded = mds.fit_transform(d)
-    print("Parallel Transport Unfolding successfully completed!")
+    if verbose:
+        print("Parallel Transport Unfolding successfully completed!")
     return embedded
 
 
