@@ -71,6 +71,8 @@ def experiment_geodesic():
     plt.plot(path_lengths, dijkstra_errors_mean, label='dijkstra')
     plt.plot(path_lengths, ptu_errors_mean, c='r', label='PTU')
     plt.legend()
+    plt.xlabel('Number of graph edges in geodesic')
+    plt.ylabel('Mean error')
     plt.show()
     print(len(dijkstra_errors)) 
     print(len(number_paths_that_length))
