@@ -1,6 +1,20 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+def plane(n_samples, noise = 0.0, random_state=123, return_gt=False):
+    if return_gt and noise > 0:
+        raise Warning("return_gt is set to `True` but noise is not zero. Ground truth is not accurate")
+    np.random.seed(random_state)
+    x, y = np.random.rand(1, n_samples) - 0.5, np.random.rand(1, n_samples) - 0.5
+    z = x + y
+    X = np.concatenate((x, y, z))
+    X += noise * np.random.randn(3, n_samples)
+    X = X.T    
+    if return_gt:
+        return X, z, np.array([x[0], y[0]]).T
+    else:
+        return X, z
+
 def s_roll(n_samples, noise = 0.0, random_state=123, return_gt=False):
     if return_gt and noise > 0:
         raise Warning("return_gt is set to `True` but noise is not zero. Ground truth is not accurate")
@@ -50,8 +64,9 @@ def s_roll_with_void(n_samples, noise = 0.0, random_state=123, return_gt=False):
         return X[~mask], t[~mask]
 
 
-def test_s():
-    X, color, gt = s_roll_with_void(4000, return_gt=True)
+def test():
+    # X, color, gt = s_roll_with_void(4000, return_gt=True)
+    X, color, gt = plane(4000, return_gt=True)
 
     fig = plt.figure(figsize=(14,7))
     ax = fig.add_subplot(121, projection='3d')
@@ -64,4 +79,4 @@ def test_s():
     plt.show()
 
 if __name__ == '__main__':
-    test_s()
+    test()
