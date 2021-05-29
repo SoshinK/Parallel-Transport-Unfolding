@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from sklearn.neighbors import NearestNeighbors
 
 def plane(n_samples, noise = 0.0, random_state=123, return_gt=False):
     if return_gt and noise > 0:
@@ -63,6 +64,28 @@ def s_roll_with_void(n_samples, noise = 0.0, random_state=123, return_gt=False):
     else:
         return X[~mask], t[~mask]
 
+def sample_on_sphere(n_samples, random_state=123):
+    np.random.seed(random_state)
+    phi = np.pi * (np.random.rand(1, n_samples) - 0.5)
+    theta = np.pi * (np.random.rand(1, n_samples)) * 0.2
+    rho = np.ones((1,n_samples), dtype=np.float64)
+    x, y, z = _to_cortesian(phi, theta, rho)
+    X = np.concatenate((y, -x, z)).T
+
+    nnbrs = NearestNeighbors(n_neighbors=5)
+    nnbrs.fit(X)
+    edges = nnbrs.kneighbors_graph().toarray()
+    return X, edges, nnbrs
+
+def _to_cortesian(phi, theta, rho):
+    x = rho * np.sin(theta) * np.cos(phi)
+    y = rho * np.sin(theta) * np.sin(phi)
+    z = rho * np.cos(theta)
+    return x, y, z
+
+
+
+    
 
 def test():
     # X, color, gt = s_roll_with_void(4000, return_gt=True)

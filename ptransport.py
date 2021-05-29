@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 def _compute_tangent_spaces(X, nnbrs, K, d):
     kn_graph = nnbrs.kneighbors_graph(n_neighbors=K).toarray()
-    kn_graph -= np.eye((kn_graph.shape[0]))
+    # kn_graph -= np.eye((kn_graph.shape[0]))
 
     geodesic_neighborhoods = np.array([(X[np.nonzero(kn_graph[i])] - X[i]).T for i in tqdm(range(X.shape[0]))])
     u, _, _ = np.linalg.svd(geodesic_neighborhoods)
@@ -22,7 +22,7 @@ def _get_neigh_idxs_and_dists(nnbrs, make_graph_how):
     neigh_idxs = []
     if make_graph_how == 'neighbors':
         nnbrs_graph = nnbrs.kneighbors_graph().toarray()
-        nnbrs_graph -= np.eye(nnbrs_graph.shape[0])
+        # nnbrs_graph -= np.eye(nnbrs_graph.shape[0])
         nnbrs_idxs = [np.nonzero(nnbrs_graph[i])[0] for i in range(nnbrs_graph.shape[0])]
         
         nnbrs_dists = nnbrs.kneighbors_graph(mode='distance').toarray()
@@ -257,19 +257,6 @@ def test():
     plt.scatter(x_embed[:, 0], x_embed[:, 1], c=color, cmap=plt.cm.rainbow)
     plt.show()
 
-def test1():
-    X = np.random.randn(12).reshape((4, 3))
-    print(X)
-    T = _tangent_space(X, 0, [1, 2, 3], 3)
-    print(T)
-    print(T[:, 0] @ X[0])
-    print(T[:, 1] @ X[0])
-
-def test2():
-    samples = [[0, 0, 2], [1, 0, 0], [0, 0, 1]]
-    neigh = NearestNeighbors(n_neighbors=2, radius=0.4)
-    neigh.fit(samples)
-    print(neigh.kneighbors([[1  , 0, 0]], 2, return_distance=False))
 
 if __name__ == '__main__':
     test()
