@@ -60,7 +60,7 @@ def experiment_plane(n_samples, random_state, n_components , **params_for_ptu):
 
     ax = fig.add_subplot(155)
     x_dmap_solution_rotated = overlay(x_dmap_solution, gt)
-    # x_dmap_solution_rotated = x_dmap_solution
+    x_dmap_solution_rotated = x_dmap_solution
     sc = ax.scatter(
         x_dmap_solution_rotated[:, 0], 
         x_dmap_solution_rotated[:, 1], 
