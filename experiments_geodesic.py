@@ -66,7 +66,7 @@ def experiment_geodesic():
         lengths, routes = dijkstra(i, nnbrs_idxs, nnbrs.kneighbors_graph(mode='distance').toarray(), X.shape[0])
 
         ptu_dists = PTU_dists(X, 2)
-        dm_disits = get_dm_dists(X)
+        # dm_disits = get_dm_dists(X)
         # np.seterr(all='raise')
         eps = 1e-7
         for l, r in zip(lengths, routes):
@@ -77,14 +77,14 @@ def experiment_geodesic():
                 # print("keka", idx[0], len(r))
                 dijkstra_errors[int(idx[0])] += np.abs(l - true_geodesic) / true_geodesic
                 ptu_errors[int(idx[0])] += np.abs(ptu_dists[i, int(r[-1])] - true_geodesic) / true_geodesic
-                dm_errors[int(idx[0])] += np.abs(dm_disits[i, int(r[-1])] - true_geodesic) / true_geodesic
+                # # dm_errors[int(idx[0])] += np.abs(dm_disits[i, int(r[-1])] - true_geodesic) / true_geodesic
                 number_paths_that_length[int(idx[0])] += 1
             else:
                 try:
                     path_lengths.append(len(r))
                     dijkstra_errors.append(np.abs(l - true_geodesic) / true_geodesic)
                     ptu_errors.append(np.abs(ptu_dists[i, int(r[-1])] - true_geodesic) / true_geodesic)
-                    dm_errors.append(np.abs(dm_disits[i, int(r[-1])] - true_geodesic) / true_geodesic)
+                    # # dm_errors.append(np.abs(dm_disits[i, int(r[-1])] - true_geodesic) / true_geodesic)
                     number_paths_that_length.append(1)
                 except Warning:
                     print(i, r[-1], true_geodesic, ptu_dists[i, int(r[-1])])
@@ -93,13 +93,13 @@ def experiment_geodesic():
         # print(lengths)
     dijkstra_errors_mean = np.array(dijkstra_errors) / np.array(number_paths_that_length)
     ptu_errors_mean = np.array(ptu_errors) / np.array(number_paths_that_length)
-    dm_errors_mean = np.array(dm_errors) / np.array(number_paths_that_length)
+    # # dm_errors_mean = np.array(dm_errors) / np.array(number_paths_that_length)
 
     path_lengths2 = path_lengths
     path_lengths3 = path_lengths
     path_lengths, dijkstra_errors_mean = zip(*sorted(zip(path_lengths, dijkstra_errors_mean)))
     path_lengths, ptu_errors_mean = zip(*sorted(zip(path_lengths2, ptu_errors_mean)))
-    path_lengths, dm_errors_mean = zip(*sorted(zip(path_lengths3, dm_errors_mean)))
+    # # path_lengths, dm_errors_mean = zip(*sorted(zip(path_lengths3, dm_errors_mean)))
 
     # plt.figure(figsize=(10, 8))
     x_smooth = np.linspace(np.min(path_lengths), np.max(path_lengths), 20)
@@ -107,10 +107,10 @@ def experiment_geodesic():
     # x_g1d = gaussian_filter1d(path_lengths, sigma)
     # y_g1d = gaussian_filter1d(dijkstra_errors_mean, sigma)
     spl = interpolate.UnivariateSpline(path_lengths, dijkstra_errors_mean)
-    spl2 = interpolate.UnivariateSpline(path_lengths, dm_errors_mean)
+    # spl2 = interpolate.UnivariateSpline(path_lengths, dm_errors_mean)
     ax2 = fig.add_subplot(122)
     ax2.plot(path_lengths, dijkstra_errors_mean, label='dijkstra')
-    ax2.plot(path_lengths, dm_errors_mean, label='diffusion distance')
+    # ax2.plot(path_lengths, dm_errors_mean, label='diffusion distance')
     ax2.plot(path_lengths, ptu_errors_mean, c='r', label='PTU')
     ax2.plot()
     ax2.legend()
